@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Bash Multiplexer Version 0.1
 set -eu -o pipefail
 
 FMT_RST=$'\e[0m'
