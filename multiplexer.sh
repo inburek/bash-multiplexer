@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.1
+# Bash Multiplexer Version 0.2
 set -eu -o pipefail
 
-FMT_RST=$'\e[0m'
-FMT_AZURE=$'\e[36m'
+# HELP FUNCTION
 
 SCRIPT_USAGE_INSTRUCTIONS=$(cat <<USAGE
 Arguments:
@@ -27,6 +26,8 @@ EOF
 USAGE
 )
 
+# ARGUMENTS
+
 SCRIPT_WIDTH_AVAILABLE="${1?"Please provide argument 1. $SCRIPT_USAGE_INSTRUCTIONS"}"
 SCRIPT_COLUMN_WIDTH="${2?"Please provide argument 2. $SCRIPT_USAGE_INSTRUCTIONS"}"
 SCRIPT_MAX_LINES_FOR_SAME_PROCESS="${3?"Please provide argument 3. $SCRIPT_USAGE_INSTRUCTIONS"}"
@@ -35,7 +36,8 @@ if [[ "$SCRIPT_WIDTH_AVAILABLE" == 'auto' ]]; then
   SCRIPT_WIDTH_AVAILABLE="$(tput cols)"
 fi
 
-# STDIN
+# STANDARD INPUT
+
 __SCRIPT_COMMAND=()
 while read -r __current_command; do
   __SCRIPT_COMMAND+=("$__current_command")
@@ -44,6 +46,13 @@ done
 if [[ "$SCRIPT_COLUMN_WIDTH" == 'auto' ]]; then
   SCRIPT_COLUMN_WIDTH=$(($SCRIPT_WIDTH_AVAILABLE / ${#__SCRIPT_COMMAND[@]}))
 fi
+
+# CONSTANTS
+FMT_RST=$'\e[0m'
+FMT_AZURE=$'\e[36m'
+FMT_PATTERN=$'\e\\[([0-9]+)(;[0-9]+)*m'
+
+# GENERAL DEBUGGING UTILITIES
 
 function args_debug () {
   >&2 echo "$1:"
@@ -84,16 +93,11 @@ function sed_apply_forever () {
 }
 
 function fmt_1_extract () {
-  local e=$'\e'
-  local FMT_PATTERN="$e\\[([0-9]+)(;[0-9]+)*m"
   local TR_EXIT_STATUS
   (grep -oh -E "$FMT_PATTERN" || true) | tr -d '\n' || { TR_EXIT_STATUS=$?; $(($TR_EXIT_STATUS == 130 )) || >&2 echo "Failed in fmt_1_extract! Exit code: $?. PIPESTATUS:" "${PIPESTATUS[@]}"; }
 }
 
 function fmt_2_simplify () {
-  local e=$'\e'
-  local FMT_PATTERN="$e\\[([0-9]+)(;[0-9]+)*m"
-
   # Leaves: 55;33 0 23;6 7 38;5;190
   sed -E $'s#(\e\\[|m)+# #g' |
   # Split out foreground and background composites as their own thing and mark with : instead of ;
@@ -192,7 +196,6 @@ function print_indented_and_squeezed () {
   INDENTATION="$2"
   local INPUT="$(cat)"
 
-  local FMT_RST=$'\e[0m'
   local e=$'\e'
 
   local LINES=()
@@ -202,7 +205,7 @@ function print_indented_and_squeezed () {
   else
     local ORIGINAL_LINE;
     while read -r ORIGINAL_LINE; do
-      local ORIGINAL_LINE_SPLIT="$(grep -oh --color=never -E "((($e\[[;0-9]+m)+.?|.){0,$MAX_WIDTH})" <<< "$ORIGINAL_LINE")"
+      local ORIGINAL_LINE_SPLIT="$(grep -oh --color=never -E "((($FMT_PATTERN)+.?|.){0,$MAX_WIDTH})" <<< "$ORIGINAL_LINE")"
       local LINE='';
       if [[ "$ORIGINAL_LINE_SPLIT" == '' ]]; then
         :
@@ -216,7 +219,7 @@ function print_indented_and_squeezed () {
   fi
 
   for LINE in "${LINES[@]}"; do
-    echo "$INDENTATION$LINE"$'\e[0m'
+    echo "$INDENTATION$LINE$FMT_RST"
   done
 
   export RESULT_ACCUMULATED_FMT="$ACCUMULATED_FMT_CODES"
@@ -232,7 +235,7 @@ function command_monitor () {
   local fifo; for fifo in "$@"; do
     FULL_DESCRIPTORS+=("$fifo")
     DESCRIPTORS+=("$(sed -E 's:^/dev/fd/::' <<< "$fifo")")
-    ESCAPES+=($'\e[0m')
+    ESCAPES+=("$FMT_RST")
     INDENTATIONS+=("$INDENTATION")
     INDENTATION="$INDENTATION$SCRIPT_INDENTATION"
   done
