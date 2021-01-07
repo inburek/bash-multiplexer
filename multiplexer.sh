@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.10
+# Bash Multiplexer Version 0.11
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -362,7 +362,7 @@ function append_exit_codes () {
   local COMMAND_DESCRIPTION="$1"
   local EXIT_CODE="$2"
   local COMMAND="$3"
-  echo "Exit code for $(printf '%-12s' "$COMMAND_DESCRIPTION") = $(printf '%3s' "$EXIT_CODE")  # $COMMAND" >> "$EXIT_CODES_FILE"
+  echo "Exit code for $(printf '%-12s' "$COMMAND_DESCRIPTION") = $(printf '%3s' "$EXIT_CODE") │ $COMMAND" >> "$EXIT_CODES_FILE"
 }
 function print_exit_codes () {
   sleep 1
@@ -382,10 +382,10 @@ for ((i=0; i < ${#__SCRIPT_COMMAND[@]}; i++)); do
   STMT_TITLE_UNDERLINE="printf '% $((SCRIPT_COLUMN_WIDTH))s\n' | sed 's: :═:g'"
   STMT_EXECUTING_NOW="printf $'[92mExecuting command %s:\n  [36m%s[0m\n' ${COMMAND_INDEX@Q} ${__script_run@Q}; $STMT_TITLE_UNDERLINE"
   STMT_EVAL_AND_SET_STATUSES="(eval -- ${__script_run@Q} 2>&1) && EXIT_STATUS=\"\$?\" || EXIT_STATUS=\"\$?\""
-  STMT_APPEND_EXIT_CODES="append_exit_codes 'command' ${COMMAND_INDEX@Q} \"\$EXIT_STATUS\" ${__script_run@Q}"
+  STMT_APPEND_EXIT_CODES="append_exit_codes 'command ${COMMAND_INDEX}' \"\$EXIT_STATUS\" ${__script_run@Q}"
 
   STMT_SET_EXIT_COLOR='if [[ "$EXIT_STATUS" == 0 ]]; then SUCCESS_COLOR="[32m"; else SUCCESS_COLOR="[31m"; fi'
-  STMT_CONCLUSION_DESCRIPTION="$STMT_SET_EXIT_COLOR; printf '[0m\n%s' \"\${SUCCESS_COLOR}\"; $STMT_TITLE_UNDERLINE; printf 'Command %s exited with status code %s after %s seconds.\n' ${COMMAND_INDEX@Q} \"\${EXIT_STATUS}\" \"\$SECONDS\""
+  STMT_CONCLUSION_DESCRIPTION="$STMT_SET_EXIT_COLOR; printf '[0m%s' \"\${SUCCESS_COLOR}\"; $STMT_TITLE_UNDERLINE; printf 'Command %s exited with status code %s after %s seconds.\n' ${COMMAND_INDEX@Q} \"\${EXIT_STATUS}\" \"\$SECONDS\""
 
   STMT_SUBCOMMAND="$STMT_EXECUTING_NOW; $STMT_EVAL_AND_SET_STATUSES; $STMT_CONCLUSION_DESCRIPTION; $STMT_APPEND_EXIT_CODES; sleep 2"
 
