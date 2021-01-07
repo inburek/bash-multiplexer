@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.4
+# Bash Multiplexer Version 0.5
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -300,7 +300,7 @@ function command_monitor () {
         local LINES_COLLECTED=0
         while true; do
           local READ_EXIT_CODE=0
-          IFS= read -r "-u$descriptor" '-t0.2' LINE || READ_EXIT_CODE="$?"
+          IFS= read -r -n 5000 "-u$descriptor" '-t0.2' LINE || READ_EXIT_CODE="$?"
           if [[ "$READ_EXIT_CODE" == 0 ]]; then
             if [[ "${LINE:+x}" != "x" ]]; then
               break # LINE not defined.
