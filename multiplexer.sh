@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.5
+# Bash Multiplexer Version 0.6
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -244,30 +244,26 @@ function print_indented_and_squeezed () {
 
   if [[ "$INPUT" == '' ]]; then
     LINES=1
-    echo
+    echo "$INDENTATION"
   else
     local ORIGINAL_LINE;
     while read -r ORIGINAL_LINE; do
       local ORIGINAL_LINE_SPLIT="$(grep -oh --color=never -E "((($FMT_PATTERN)+.?|.){0,$MAX_WIDTH})" <<< "$ORIGINAL_LINE")"
       local LINE='';
-      if [[ "$ORIGINAL_LINE_SPLIT" == '' ]]; then
-        :
-      else
-        while read -r LINE; do
-          local OLD_ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES"
+      while read -r LINE; do
+        local OLD_ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES"
 
-          ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES$(fmt_1_extract <<< "$LINE")"
-          if [[ "$ACCUMULATED_FMT_CODES" != '' ]]; then
-            LINE="$LINE$FMT_RST"
-          fi
-          LINE="$OLD_ACCUMULATED_FMT_CODES$LINE"
-          (( LINES = $LINES + 1 ))
-          echo "$INDENTATION$LINE"
-          if (( $DEBUGGING_COLORS )); then
-            echo "$INDENTATION$OLD_ACCUMULATED_FMT_CODES${LINE@Q}$FMT_RST"
-          fi
-        done <<< "$(echo "$ORIGINAL_LINE_SPLIT")"
-      fi
+        ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES$(fmt_1_extract <<< "$LINE")"
+        if [[ "$ACCUMULATED_FMT_CODES" != '' ]]; then
+          LINE="$LINE$FMT_RST"
+        fi
+        LINE="$OLD_ACCUMULATED_FMT_CODES$LINE"
+        (( LINES = $LINES + 1 ))
+        echo "$INDENTATION$LINE"
+        if (( $DEBUGGING_COLORS )); then
+          echo "$INDENTATION$OLD_ACCUMULATED_FMT_CODES${LINE@Q}$FMT_RST"
+        fi
+      done <<< "$(echo "$ORIGINAL_LINE_SPLIT")"
     done <<< "$INPUT"
   fi
 
@@ -302,7 +298,7 @@ function command_monitor () {
           local READ_EXIT_CODE=0
           IFS= read -r -n 5000 "-u$descriptor" '-t0.2' LINE || READ_EXIT_CODE="$?"
           if [[ "$READ_EXIT_CODE" == 0 ]]; then
-            if [[ "${LINE:+x}" != "x" ]]; then
+            if [[ "${LINE+x}" != "x" ]]; then
               break # LINE not defined.
             fi
 
