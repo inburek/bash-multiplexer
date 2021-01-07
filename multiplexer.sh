@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.9
+# Bash Multiplexer Version 0.10
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -101,7 +101,7 @@ function sed_apply_forever () {
 
 function fmt_1_extract () {
   local TR_EXIT_STATUS
-  (grep -oh -E "$FMT_PATTERN" || true) | tr -d '\n' || { TR_EXIT_STATUS=$?; $(($TR_EXIT_STATUS == 130 )) || >&2 echo "Failed in fmt_1_extract! Exit code: $?. PIPESTATUS:" "${PIPESTATUS[@]}"; }
+  grep -oh -E "$FMT_PATTERN" | tr -d '\n' || true
 }
 
 function fmt_2_simplify () {
@@ -225,8 +225,22 @@ function test_command () {
   done
   echo -e '\n████████████████████████████████'
   echo -e "Done after $SECONDS seconds"
-  sleep 1
   return "$EXIT_STATUS"
+}
+
+MEASURED_TIME_SECONS=0
+function measure_time () {
+  if [[ "${MEASURE_TIME_START-UNDEFINED}" == "UNDEFINED" ]]; then
+    MEASURE_TIME_START="$(date +%s)"
+  else
+    MEASURED_TIME_SECONS=$((MEASURED_TIME_SECONS + ($(date +%s) - $MEASURE_TIME_START)));
+    unset MEASURE_TIME_START
+  fi
+}
+function measure_time_print () {
+  if (( $MEASURED_TIME_SECONS > 0 )); then
+    echo "Measured total of $MEASURED_TIME_SECONS seconds."
+  fi
 }
 
 function print_indented_and_squeezed () {
@@ -240,25 +254,34 @@ function print_indented_and_squeezed () {
     ACCUMULATED_FMT_CODES="$(fmt_2_simplify <<< "$ACCUMULATED_FMT_CODES" | fmt_3_collapse | fmt_assume_no_previous_fmt | fmt_4_reconstruct)"
   fi
 
-  local LINES=0
+  local LINES_WRITTEN=0
 
   if [[ "$INPUT" == '' ]]; then
-    LINES=1
+    LINES_WRITTEN=1
     echo "$INDENTATION"
   else
     local ORIGINAL_LINE;
     while read -r ORIGINAL_LINE; do
-      local ORIGINAL_LINE_SPLIT="$(grep -oh --color=never -E "((($FMT_PATTERN)+.?|.){0,$MAX_WIDTH})" <<< "$ORIGINAL_LINE")"
+      if grep -Fq '' <<< "$ORIGINAL_LINE" > /dev/null; then
+        local ORIGINAL_LINE_SPLIT="$(sed -E "s:(((\[[0-9;]*m)+.?|.){$MAX_WIDTH}):\0\n:g" <<< "$ORIGINAL_LINE")"
+        local FOUND_ESCAPES=$((1))
+      else
+        local ORIGINAL_LINE_SPLIT="$(sed -E "s:.{$MAX_WIDTH}:\0\n:g" <<< "$ORIGINAL_LINE")"
+        local FOUND_ESCAPES=$((0))
+      fi
+
       local LINE='';
       while read -r LINE; do
         local OLD_ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES"
 
-        ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES$(fmt_1_extract <<< "$LINE")"
+        if ((FOUND_ESCAPES)); then
+          ACCUMULATED_FMT_CODES="$ACCUMULATED_FMT_CODES$(fmt_1_extract <<< "$LINE")"
+        fi
         if [[ "$ACCUMULATED_FMT_CODES" != '' ]]; then
           LINE="$LINE$FMT_RST"
         fi
         LINE="$OLD_ACCUMULATED_FMT_CODES$LINE"
-        (( LINES = $LINES + 1 ))
+        (( LINES_WRITTEN = $LINES_WRITTEN + 1 ))
         echo "$INDENTATION$LINE"
         if (( $DEBUGGING_COLORS )); then
           echo "$INDENTATION$OLD_ACCUMULATED_FMT_CODES${LINE@Q}$FMT_RST"
@@ -268,7 +291,7 @@ function print_indented_and_squeezed () {
   fi
 
   export RESULT_ACCUMULATED_FMT="$ACCUMULATED_FMT_CODES"
-  export RESULT_LINES_WRITTEN="$LINES"
+  export RESULT_LINES_WRITTEN="$LINES_WRITTEN"
 }
 
 function command_monitor () {
@@ -378,3 +401,5 @@ eval "$MONITOR_COMMAND" && MONITOR_EXIT_STATUS="$?" || MONITOR_EXIT_STATUS="$?";
 append_exit_codes 'monitor' "$MONITOR_EXIT_STATUS" "(internal command)"
 
 print_exit_codes
+
+measure_time_print
