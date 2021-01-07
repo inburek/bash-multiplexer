@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.7
+# Bash Multiplexer Version 0.8
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -356,10 +356,12 @@ for ((i=0; i < ${#__SCRIPT_COMMAND[@]}; i++)); do
 
   STMT_EXECUTING_NOW="printf $'[92mExecuting:\n  [36m%s[0m\n\n' ${__script_run@Q}"
   STMT_EVAL_AND_SET_STATUSES="(eval -- ${__script_run@Q} 2>&1) && EXIT_STATUS=\"\$?\" || EXIT_STATUS=\"\$?\""
-  STMT_EXITED_WITH_STATUS='echo "Exited with status code $EXIT_STATUS"'
   STMT_APPEND_EXIT_CODES="append_exit_codes 'command $(($i + 1))/${#__SCRIPT_COMMAND[@]}' \"\$EXIT_STATUS\" ${__script_run@Q}"
 
-  STMT_SUBCOMMAND="$STMT_EXECUTING_NOW; $STMT_EVAL_AND_SET_STATUSES; $STMT_EXITED_WITH_STATUS; $STMT_APPEND_EXIT_CODES; sleep 2"
+  STMT_SET_EXIT_COLOR='if [[ "$EXIT_STATUS" == 0 ]]; then SUCCESS_COLOR="[32m"; else SUCCESS_COLOR="[31m"; fi'
+  STMT_CONCLUSION_DESCRIPTION="$STMT_SET_EXIT_COLOR; echo \"[0m\${SUCCESS_COLOR}Command $((i + 1)) exited with status code \$EXIT_STATUS\""
+
+  STMT_SUBCOMMAND="$STMT_EXECUTING_NOW; $STMT_EVAL_AND_SET_STATUSES; $STMT_CONCLUSION_DESCRIPTION; $STMT_APPEND_EXIT_CODES; sleep 2"
 
   EXIT_CODES_FILE+=('')
   MONITOR_COMMAND="$MONITOR_COMMAND <($STMT_SUBCOMMAND;)"
