@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.3
+# Bash Multiplexer Version 0.4
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -302,8 +302,9 @@ function command_monitor () {
           local READ_EXIT_CODE=0
           IFS= read -r "-u$descriptor" '-t0.2' LINE || READ_EXIT_CODE="$?"
           if [[ "$READ_EXIT_CODE" == 0 ]]; then
-            [[ "${LINE+x}" == "x" ]] || break;
-            (($LINES_COLLECTED < $SCRIPT_MAX_LINES_FOR_SAME_PROCESS)) || break;
+            if [[ "${LINE:+x}" != "x" ]]; then
+              break # LINE not defined.
+            fi
 
             print_indented_and_squeezed \
               "$CURRENT_ESCAPES" \
@@ -318,6 +319,9 @@ function command_monitor () {
           else
             DESCRIPTORS_LEFT=$(($DESCRIPTORS_LEFT - 1))
             DESCRIPTORS[$di]=''
+            break
+          fi
+          if (($LINES_COLLECTED >= $SCRIPT_MAX_LINES_FOR_SAME_PROCESS)); then
             break
           fi
         done
