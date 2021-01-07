@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bash Multiplexer Version 0.6
+# Bash Multiplexer Version 0.7
 set -eu -o pipefail
 
 # HELP FUNCTION
@@ -354,9 +354,15 @@ MONITOR_COMMAND='command_monitor '
 for ((i=0; i < ${#__SCRIPT_COMMAND[@]}; i++)); do
   __script_run="${__SCRIPT_COMMAND[$i]}"
 
-#  eval -- "${__script_run}" 2>&1 # To compare with how long it takes to run without the multiplexer.
+  STMT_EXECUTING_NOW="printf $'[92mExecuting:\n  [36m%s[0m\n\n' ${__script_run@Q}"
+  STMT_EVAL_AND_SET_STATUSES="(eval -- ${__script_run@Q} 2>&1) && EXIT_STATUS=\"\$?\" || EXIT_STATUS=\"\$?\""
+  STMT_EXITED_WITH_STATUS='echo "Exited with status code $EXIT_STATUS"'
+  STMT_APPEND_EXIT_CODES="append_exit_codes 'command $(($i + 1))/${#__SCRIPT_COMMAND[@]}' \"\$EXIT_STATUS\" ${__script_run@Q}"
+
+  STMT_SUBCOMMAND="$STMT_EXECUTING_NOW; $STMT_EVAL_AND_SET_STATUSES; $STMT_EXITED_WITH_STATUS; $STMT_APPEND_EXIT_CODES; sleep 2"
+
   EXIT_CODES_FILE+=('')
-  MONITOR_COMMAND="$MONITOR_COMMAND <(printf $'[92mExecuting:\n  [36m%s[0m\n\n' ${__script_run@Q}; (eval -- ${__script_run@Q} 2>&1) && EXIT_STATUS=\"\$?\" || EXIT_STATUS=\"\$?\"; echo \"Exited with status code \$EXIT_STATUS\"; append_exit_codes 'command $(($i + 1))/${#__SCRIPT_COMMAND[@]}' \"\$EXIT_STATUS\" ${__script_run@Q}; sleep 2; )"
+  MONITOR_COMMAND="$MONITOR_COMMAND <($STMT_SUBCOMMAND;)"
 done
 
 echo "Look for the exit codes in $EXIT_CODES_FILE"
